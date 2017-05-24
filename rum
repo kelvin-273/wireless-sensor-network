@@ -1,0 +1,11 @@
+#!/bin/bash
+
+mpicc -std=c99 $2;
+
+if [ "$?" = "0" ]; then
+    mpirun -np $1 ./a.out;
+else
+    exit 1
+fi
+
+rm a.out

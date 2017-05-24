@@ -1,0 +1,9 @@
+#!/bin/bash
+
+cat program.c | sed "s/\\/\\/ ++ //" > one_run_prog.c;
+./rum 61 one_run_prog.c > one_run_raw.txt;
+cat one_run_raw.txt | grep ^p- | sed "s/p-//" | sort -n > one_run_results.txt;
+cat one_run_raw.txt | grep -v ^p- >> one_run_results.txt;
+cat one_run_results.txt;
+
+rm one_run_prog.c one_run_raw.txt one_run_results.txt;
