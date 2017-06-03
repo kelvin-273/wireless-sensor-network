@@ -3,6 +3,8 @@
 #include <stdbool.h>
 
 typedef int key[3];
+#define KEYLEN 3
+
 typedef struct LN {
     key *list;
     int len;

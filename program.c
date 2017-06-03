@@ -4,13 +4,11 @@
 #include <stdlib.h>
 #include "array_of_keys.h"
 
-#ifndef BASE_STATION
 #define BASE_STATION 60
-#endif
-
-#ifndef NULL_KEY
 #define NULL_KEY (key) {-1,-1,-1}
-#endif
+#define DIM (int[2]) {4, 15}
+#define PRD (int[2]) {0, 0}
+#define RORD 0
 
 void init_rand(int rank, int numtasks) {
     // root takes the time as the seed
@@ -44,8 +42,8 @@ void catch(int source, LN *array, MPI_Comm comm, int rank) {
         MPI_Get_count(&status, MPI_INT, &recv_len);
         recv_buff = malloc(recv_len * sizeof(int));
         MPI_Recv(recv_buff, recv_len, MPI_INT, source, 0, comm, MPI_STATUS_IGNORE);
-        for (int i = 0; i < recv_len / 3; i++) {
-            append(array, recv_buff + 3*i);
+        for (int i = 0; i < recv_len / KEYLEN; i++) {
+            append(array, recv_buff + KEYLEN*i);
         }
         free(recv_buff);
     }
@@ -53,7 +51,6 @@ void catch(int source, LN *array, MPI_Comm comm, int rank) {
 
 int main(int argc, char *argv[]) {
     int rank, numtasks, reading;
-    int dim[2], period[2], reorder;
     key own_key;
     int coords[2];
 
@@ -72,12 +69,8 @@ int main(int argc, char *argv[]) {
     }
 
     // creates the cartesian grid with the first 60 nodes
-    dim[0] = 4; dim[1] = 15;
-    period[0] = 0; period[1] = 0;
-    reorder = 0;
-
     MPI_Comm wsn;
-    MPI_Cart_create(MPI_COMM_WORLD, 2, dim, period, reorder, &wsn);
+    MPI_Cart_create(MPI_COMM_WORLD, 2, DIM, PRD, RORD, &wsn);
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (rank != BASE_STATION){
@@ -104,10 +97,10 @@ int main(int argc, char *argv[]) {
             // first round of key sharing
             // write info from dynamic array to static send_list to be sent
             int *send_list, send_len;
-            send_len = 3 * array->len;
+            send_len = KEYLEN * array->len;
             send_list = (int *) malloc(sizeof(int) * send_len);
             for (int i = 0; i < array->len; i++) {
-                copyN(array->list[i], send_list + 3*i); // pointer arithmetic
+                copyN(array->list[i], send_list + KEYLEN*i); // pointer arithmetic
             }
             // here the nodes pair off into groups of 2 sharing their list of
             // nodes with each other. first parings form vertically.
@@ -137,7 +130,7 @@ int main(int argc, char *argv[]) {
 
             // The send list is rebuilt for the next round of sending.
             // Each key has a list of neighbour keys with readings and coords.
-            send_len = 3 * array->len;
+            send_len = KEYLEN * array->len;
             send_list = (int *) realloc(send_list, sizeof(int) * send_len);
             for (int i = 0; i < array->len; i++) {
                 copyN(array->list[i], send_list + 3*i); // pointer arithmetic
@@ -174,14 +167,14 @@ int main(int argc, char *argv[]) {
             uniq(array);
             // check if event has occured and send to BASE_STATION if so
             if (event_verify(array)) {
-                MPI_Send(own_key, 3, MPI_INT, BASE_STATION, 0, MPI_COMM_WORLD);
+                MPI_Send(own_key, KEYLEN, MPI_INT, BASE_STATION, 0, MPI_COMM_WORLD);
                 // ++ printLN(array);
             }
             free(array);
             free(send_list);
             MPI_Barrier(wsn);
             if (rank == 0) {
-                MPI_Send(NULL_KEY, 3, MPI_INT, BASE_STATION, 0, MPI_COMM_WORLD);
+                MPI_Send(NULL_KEY, KEYLEN, MPI_INT, BASE_STATION, 0, MPI_COMM_WORLD);
             }
             MPI_Barrier(wsn);
             // ++ break;
@@ -197,7 +190,7 @@ int main(int argc, char *argv[]) {
 
             fp = fopen ("output.csv","a");
             key recv_buff;
-            MPI_Recv(recv_buff, 3, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(recv_buff, KEYLEN, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             double recv_time = MPI_Wtime();
             int recv_rank = 15 * recv_buff[1] + recv_buff[2];
 
